@@ -1,0 +1,57 @@
+name: Build APK
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:        # lets you press "Run workflow" from the Actions tab (works from a phone too)
+
+permissions:
+  contents: read            # workflow-level default: read-only unless the job asks for more
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write       # only needed to attach the APK to a GitHub Release on a v* tag
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4 (pinned: tags are mutable)
+
+      - name: Install build tools (JDK, aapt, dx, zipalign, apksigner, android.jar API 23)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            openjdk-21-jdk-headless aapt apksigner dalvik-exchange libandroid-23-java zipalign
+
+      - name: Unit tests (AUX frame layer, plain JVM)
+        run: |
+          mkdir -p /tmp/t
+          javac -d /tmp/t src/com/cosmos90gt/ctrl/Aux.java src/com/cosmos90gt/ctrl/AuxParser.java \
+                src/com/cosmos90gt/ctrl/HexLog.java test/AuxTest.java
+          java -cp /tmp/t AuxTest
+
+      - name: Restore signing keystore from repo secret (COSMOS90GT_KEYSTORE_B64)
+        env:
+          KEYSTORE_B64: ${{ secrets.COSMOS90GT_KEYSTORE_B64 }}
+        run: |
+          mkdir -p tools
+          [ -n "$KEYSTORE_B64" ] || { echo "Set repo secret COSMOS90GT_KEYSTORE_B64 first (base64 of the keystore)"; exit 1; }
+          echo "$KEYSTORE_B64" | base64 -d > tools/debug.keystore
+
+      - name: Build and sign APK
+        run: bash build.sh
+
+      - name: Upload APK as a workflow artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4 (pinned)
+        with:
+          name: cosmos90gt-apk
+          path: build/cosmos90gt.apk
+          if-no-files-found: error
+
+      - name: Attach APK to the GitHub Release (tags like v0.1 only)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2 (pinned)
+        with:
+          files: build/cosmos90gt.apk
+          
+
