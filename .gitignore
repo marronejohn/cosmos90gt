@@ -1,0 +1,9 @@
+# build outputs (never commit these)
+build/
+app.unaligned.apk
+app.aligned.apk
+*.apk
+
+# local tool droppings
+*.class
+out/
