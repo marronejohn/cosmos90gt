@@ -29,10 +29,14 @@ echo "[4/6] zipalign"
 "$(tool zipalign)" -f 4 $OUT/app.unaligned.apk $OUT/app.aligned.apk
 
 echo "[5/6] sign (keystore tools/debug.keystore; created once, keep it so updates install over old versions)"
+# Override with KEYSTORE_PASS / KEYSTORE_ALIAS env vars; defaults suit a throwaway local build.
+KEYSTORE_PASS=${KEYSTORE_PASS:-android}
+KEYSTORE_ALIAS=${KEYSTORE_ALIAS:-cosmos}
 mkdir -p tools
-[ -f tools/debug.keystore ] || keytool -genkeypair -keystore tools/debug.keystore -alias cosmos -keyalg RSA -keysize 2048 \
-      -validity 10000 -storepass android -keypass android -dname "CN=Cosmos90GT" >/dev/null 2>&1
-"$(tool apksigner)" sign --ks tools/debug.keystore --ks-pass pass:android --key-pass pass:android \
+[ -f tools/debug.keystore ] || keytool -genkeypair -keystore tools/debug.keystore -alias "$KEYSTORE_ALIAS" -keyalg RSA -keysize 2048 \
+      -validity 10000 -storepass "$KEYSTORE_PASS" -keypass "$KEYSTORE_PASS" -dname "CN=Cosmos90GT" >/dev/null 2>&1
+"$(tool apksigner)" sign --ks tools/debug.keystore --ks-key-alias "$KEYSTORE_ALIAS" \
+      --ks-pass "pass:$KEYSTORE_PASS" --key-pass "pass:$KEYSTORE_PASS" \
       --out $OUT/cosmos90gt.apk $OUT/app.aligned.apk
 
 echo "[6/6] verify"
