@@ -39,6 +39,9 @@ jobs:
           echo "$KEYSTORE_B64" | base64 -d > tools/debug.keystore
 
       - name: Build and sign APK
+        env:
+          KEYSTORE_PASS: ${{ secrets.COSMOS90GT_KEYSTORE_PASS }}
+          KEYSTORE_ALIAS: cosmos
         run: bash build.sh
 
       - name: Upload APK as a workflow artifact
